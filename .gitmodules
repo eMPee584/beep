@@ -1,0 +1,3 @@
+[submodule "mmli"]
+	path = mmli
+	url = git://gitorious.org/mmli/mmli-devel.git

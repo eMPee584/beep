@@ -1,5 +1,6 @@
 CC=gcc
-FLAGS=-Wall
+# FLAGS=-Wall
+FLAGS = -Wall -DUSE_MMLI -Immli
 EXEC_NAME=beep
 INSTALL_DIR=/usr/bin
 MAN_FILE=beep.1.gz
@@ -10,8 +11,10 @@ default : beep
 clean : 
 	rm ${EXEC_NAME}
 
-beep : beep.c
-	${CC} ${FLAGS} -o ${EXEC_NAME} beep.c
+# beep : beep.c
+# 	${CC} ${FLAGS} -o ${EXEC_NAME} beep.c
+beep : beep.c mmli/mmli.c
+	${CC} ${FLAGS} -o ${EXEC_NAME} $^
 
 install : 
 	cp ${EXEC_NAME} ${INSTALL_DIR}

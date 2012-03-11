@@ -16,6 +16,7 @@
  * Bug me, I like it:  http://johnath.com/  or johnath@johnath.com
  */
 
+#include <assert.h>             /* for assert () */
 #include <fcntl.h>
 #include <getopt.h>
 #include <signal.h>
@@ -27,6 +28,10 @@
 #include <sys/types.h>
 #include <linux/kd.h>
 #include <linux/input.h>
+
+#ifdef USE_MMLI
+#include <mmli.h>
+#endif
 
 /* I don't know where this number comes from, I admit that freely.  A 
    wonderful human named Raine M. Ekman used it in a program that played
@@ -76,6 +81,9 @@ typedef struct beep_parms_t {
   int reps;       /* # of repetitions         */
   int delay;      /* delay between reps  (ms) */
   int end_delay;  /* do we delay after last rep? */
+#ifdef USE_MMLI
+  const char *mml;		/* play an MML string instead */
+#endif
   int stdin_beep; /* are we using stdin triggers?  We have three options:
 		     - just beep and terminate (default)
 		     - beep after a line of input
@@ -144,6 +152,10 @@ void usage_bail(const char *executable_name) {
   printf("Usage:\n%s [-f freq] [-l length] [-r reps] [-d delay] "
 	 "[-D delay] [-s] [-c] [--verbose | --debug] [-e device]\n",
 	 executable_name);
+#ifdef USE_MMLI
+  printf ("%s -m MML [-s] [-c] [--verbose | --debug] [-e device]\n",
+          executable_name);
+#endif
   printf("%s [Options...] [-n] [--new] [Options...] ... \n", executable_name);
   printf("%s [-h] [--help]\n", executable_name);
   printf("%s [-v] [-V] [--version]\n", executable_name);
@@ -156,6 +168,7 @@ void usage_bail(const char *executable_name) {
  * ride previous ones.
  * 
  * Currently valid parameters:
+ *  "-m <MML string>" (if compiled with USE_MMLI)
  *  "-f <frequency in Hz>"
  *  "-l <tone length in ms>"
  *  "-r <repetitions>"
@@ -174,18 +187,26 @@ void usage_bail(const char *executable_name) {
 void parse_command_line(int argc, char **argv, beep_parms_t *result) {
   int c;
 
-  struct option opt_list[7] = {{"help", 0, NULL, 'h'},
+  struct option opt_list[]  = {{"help", 0, NULL, 'h'},
 			       {"version", 0, NULL, 'V'},
 			       {"new", 0, NULL, 'n'},
+                               {"mml", 0, NULL, 'm'},
 			       {"verbose", 0, NULL, 'X'},
 			       {"debug", 0, NULL, 'X'},
 			       {"device", 1, NULL, 'e'},
 			       {0,0,0,0}};
-  while((c = getopt_long(argc, argv, "f:l:r:d:D:schvVne:", opt_list, NULL))
-	!= EOF) {
+  while ((c = getopt_long (argc, argv, "m:f:l:r:d:D:schvVne:",
+                           opt_list, NULL))
+         != EOF) {
     int argval = -1;    /* handle parsed numbers for various arguments */
     float argfreq = -1; 
     switch(c) {      
+#ifdef USE_MMLI
+    case 'm':                   /* MML */
+      result->mml = strdup (optarg);
+      assert (result->mml != 0);
+      break;
+#endif
     case 'f':  /* freq */
       if(!sscanf(optarg, "%f", &argfreq) || (argfreq >= 20000 /* ack! */) || 
 	 (argfreq <= 0))
@@ -264,9 +285,54 @@ void parse_command_line(int argc, char **argv, beep_parms_t *result) {
     result->freq = DEFAULT_FREQ;
 }  
 
-void play_beep(beep_parms_t parms) {
+static void
+play_beep_1 (beep_parms_t *parms)
+{
   int i; /* loop counter */
 
+#ifdef USE_MMLI
+  if (parms->mml != 0) {
+    /* play an MML string instead */
+    int done_p;
+    struct mmli_context x;
+
+    mmli_init (&x);
+    mmli_set (&x, parms->mml);
+    for (done_p = 0; ! done_p; ) {
+      float freq, dur, rest;
+      int r
+        = mmli_next (&x, &freq, &dur, &rest);
+
+      assert (r >= 0);
+      if (dur == 0 && rest == 0) {
+        /* NB: finished */
+        assert (freq == 0);
+        done_p = 1;
+        continue;
+      }
+
+      do_beep (freq);
+      usleep (1e6 * dur);
+      do_beep (0);
+      usleep (1e6 * rest);
+    }
+
+    /* . */
+    return;
+  }
+#endif
+
+  for (i = 0; i < parms->reps; i++) {                   /* start beep */
+    do_beep (parms->freq);
+    /* Look ma, I'm not ansi C compatible! */
+    usleep (1000 * parms->length);                      /* wait...    */
+    do_beep (0);                                        /* stop beep  */
+    if (parms->end_delay || (i + 1 < parms->reps))
+      usleep (1000 * parms->delay);                     /* wait...    */
+  }                                                     /* repeat.    */
+}
+
+void play_beep(beep_parms_t parms) {
   if(parms.verbose == 1)
       fprintf(stderr, "[DEBUG] %d times %d ms beeps (%d delay between, "
 	"%d delay after) @ %.2f Hz\n",
@@ -293,14 +359,7 @@ void play_beep(beep_parms_t parms) {
     console_type = BEEP_TYPE_CONSOLE;
   
   /* Beep */
-  for (i = 0; i < parms.reps; i++) {                    /* start beep */
-    do_beep(parms.freq);
-    /* Look ma, I'm not ansi C compatible! */
-    usleep(1000*parms.length);                          /* wait...    */
-    do_beep(0);                                         /* stop beep  */
-    if(parms.end_delay || (i+1 < parms.reps))
-       usleep(1000*parms.delay);                        /* wait...    */
-  }                                                     /* repeat.    */
+  play_beep_1 (&parms);
 
   close(console_fd);
 }
@@ -311,6 +370,9 @@ int main(int argc, char **argv) {
   char sin[4096], *ptr;
   
   beep_parms_t *parms = (beep_parms_t *)malloc(sizeof(beep_parms_t));
+#ifdef USE_MMLI
+  parms->mml        = 0;
+#endif
   parms->freq       = 0;
   parms->length     = DEFAULT_LENGTH;
   parms->reps       = DEFAULT_REPS;
