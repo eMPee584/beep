@@ -65,6 +65,7 @@ char *copyright =
 #define DEFAULT_REPS       1
 #define DEFAULT_DELAY      100   /* milliseconds */
 #define DEFAULT_END_DELAY  NO_END_DELAY
+#define DEFAULT_TEMPO      100   /* percent */
 #define DEFAULT_STDIN_BEEP NO_STDIN_BEEP
 
 /* Other Constants */
@@ -106,6 +107,7 @@ enum { BEEP_TYPE_CONSOLE, BEEP_TYPE_EVDEV };
 int console_fd = -1;
 int console_type = BEEP_TYPE_CONSOLE;
 char *console_device = NULL;
+int tempo = DEFAULT_TEMPO;
 
 
 void do_beep(int freq) {
@@ -184,6 +186,7 @@ void usage_bail(const char *executable_name) {
  *  "-s" (beep after each line of input from stdin, echo line to stdout)
  *  "-c" (beep after each char of input from stdin, echo char to stdout)
  *  "-i/--infinite" <repeat the beep pattern until SIGINT
+ *  "-t/--tempo <relative speed in percent>" (default is 100%)
  *  "--verbose/--debug"
  *  "-h/--help"
  *  "-v/-V/--version"
@@ -203,9 +206,10 @@ void parse_command_line(int argc, char **argv, beep_parms_t *result, int* infini
 			       {"verbose", 0, NULL, 'X'},
 			       {"debug", 0, NULL, 'X'},
 			       {"device", 1, NULL, 'e'},
-				   {"infinite", 0, NULL, 'i'},
+			       {"infinite", 0, NULL, 'i'},
+			       {"tempo", 1, NULL, 't'},
 			       {0,0,0,0}};
-  while ((c = getopt_long (argc, argv, "m:f:l:r:d:D:schivVne:",
+  while ((c = getopt_long (argc, argv, "m:f:l:r:d:D:schivVne:t:",
                            opt_list, NULL))
          != EOF) {
     int argval = -1;    /* handle parsed numbers for various arguments */
@@ -287,8 +291,14 @@ void parse_command_line(int argc, char **argv, beep_parms_t *result, int* infini
       console_device = strdup(optarg);
       break;
     case 'i':
-	  *infinite = YES_INFINITE;
-	  break;
+      *infinite = YES_INFINITE;
+      break;
+    case 't':
+      if (!sscanf(optarg, "%d", &argval) || (argval < 0))
+	usage_bail(argv[0]);
+      else
+	tempo = argval;
+      break;
     case 'h' : /* notice that this is also --help */
     default :
       usage_bail(argv[0]);
@@ -329,9 +339,9 @@ play_beep_1 (beep_parms_t *parms)
       }
 
       do_beep (freq);
-      usleep (1e6 * dur);
+      usleep (1e8 / tempo * dur);
       do_beep (0);
-      usleep (1e6 * rest);
+      usleep (1e8 / tempo * rest);
     }
 
     /* . */
@@ -342,18 +352,18 @@ play_beep_1 (beep_parms_t *parms)
   for (i = 0; i < parms->reps; i++) {                   /* start beep */
     do_beep (parms->freq);
     /* Look ma, I'm not ansi C compatible! */
-    usleep (1000 * parms->length);                      /* wait...    */
+    usleep (1e5 / tempo * parms->length);               /* wait...    */
     do_beep (0);                                        /* stop beep  */
     if (parms->end_delay || (i + 1 < parms->reps))
-      usleep (1000 * parms->delay);                     /* wait...    */
+      usleep (1e5 / tempo * parms->delay);              /* wait...    */
   }                                                     /* repeat.    */
 }
 
 void play_beep(beep_parms_t parms) {
   if(parms.verbose == 1)
       fprintf(stderr, "[DEBUG] %d times %d ms beeps (%d delay between, "
-	"%d delay after) @ %.2f Hz\n",
-	parms.reps, parms.length, parms.delay, parms.end_delay, parms.freq);
+	"%d delay after, speed %d%%) @ %.2f Hz\n",
+	parms.reps, parms.length, parms.delay, parms.end_delay, tempo, parms.freq);
 
   /* try to snag the console */
   if(console_device)
