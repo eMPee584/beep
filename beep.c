@@ -109,6 +109,7 @@ int console_type = BEEP_TYPE_CONSOLE;
 char *console_device = NULL;
 int tempo = DEFAULT_TEMPO;
 
+char *parse_file(FILE *file);
 
 void do_beep(int freq) {
   int period = (freq != 0 ? (int)(CLOCK_TICK_RATE/freq) : freq);
@@ -308,7 +309,50 @@ void parse_command_line(int argc, char **argv, beep_parms_t *result, int* infini
 	  result->next = first_parm;
   if (result->freq == 0)
     result->freq = DEFAULT_FREQ;
+  FILE *file;
+  if(result->verbose == 1)
+    printf("Opening file %s\n", argv[argc-1]);
+  if ((file = fopen(argv[argc-1], "r"))) {
+    result->mml = parse_file(file);
+  }
 }  
+
+char *parse_file(FILE *file) {
+  char *mml;
+  char  line[300];
+  char  buf[300];
+  int   size, res, verbose=0;
+
+  fseek(file, 0L, SEEK_END);
+  size = ftell(file);
+  rewind(file);
+  if(verbose == 1)
+    printf("size is %d bytes\n", size);
+  if (size < 16384 && (mml = malloc(size))) {
+    while (fgets(line, 300, file)) {
+      int pos = 0;
+      if(verbose == 1)
+        printf("line=%s\n", line);
+      while (line[pos] && strncmp(&line[pos], "PLAY ", 5) != 0) {
+        if(verbose == 1)
+          printf("line[%d]='%s'\n", pos, &line[pos]);
+        pos++;
+      }
+      if(verbose == 1)
+        printf("line[%d]='%s'\n", pos, &line[pos]);
+      if ((res = sscanf(&line[pos], "PLAY \"%[^\"]\"\n", buf)) > 0) {
+        if(verbose == 1)
+          printf("res: %d, buf=%s\n", res, buf);
+        strcat(mml, buf);
+      }
+    }
+  }
+  fclose(file);
+  if(verbose == 1)
+    printf("playing '%s'\n", mml);
+  return mml;
+}
+
 
 static void
 play_beep_1 (beep_parms_t *parms)
