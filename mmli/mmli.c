@@ -333,6 +333,8 @@ interp_ctl (struct mmli_context *x,
       case 's': x->fill = 6. / 8;   shift = 2; break;
       case 'n': x->fill = 7. / 8;   shift = 2; break;
       case 'l': x->fill = 1;        shift = 2; break;
+      case 'f': break;
+      case 'b': break;
       default:
         inval_p = 1;
         break;
