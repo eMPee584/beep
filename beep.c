@@ -303,6 +303,7 @@ play_beep_1 (beep_parms_t *parms)
       int r
         = mmli_next (&x, &freq, &dur, &rest);
 
+      //printf("r = %d\n", r);
       assert (r >= 0);
       if (dur == 0 && rest == 0) {
         /* NB: finished */
