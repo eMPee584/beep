@@ -1,0 +1,101 @@
+README.mmli  -*- Text -*-
+
+    Synopsis
+
+	$ mmlitest MML-CODE
+
+	/* Beethoven's Fifth */
+	const char *s
+	  = ("T180 o2 P2 P8 L8 GGG L2 E-"
+	     "P24 P8 L8 FFF L2 D");
+	struct mmli_context x;
+
+	mmli_init (&x);
+	mmli_ctl  (&x, "ON", 0);
+	mmli_set  (&x, s);
+
+	int done_p;
+	for (done_p = 0; ! done_p; ) {
+	  float freq, dur, rest;
+	  int r
+	    = mmli_next (&x, &freq, &dur, &rest);
+	  assert (r >= 0);
+	  if ((done_p = (dur == 0 && rest == 0))) {
+	    break;
+	  }
+
+	  /* play the tone here */
+	}
+
+
+    Requirements
+
+	ISO C99.
+
+
+    Description
+
+	This is a Music Macro Language interpreter, just like those
+	found within various 8-bit BASIC implementations, or in QB64.
+
+	It is modelled after the spkr.c driver from FreeBSD (as of CVS
+	revision 1.80), but contains no actual code from there.
+
+
+    Examples
+
+	The mmlitest program is provided as an example.  It transcribes
+	its only argument into a stream of beep(1) options, like:
+
+$ mmlitest 'T180 O2 P2 P8 L8 GGG L2 E- P24 P8 L8 FFF L2 D' 
+-n -f 1.000 -l 0 -D 667
+-n -f 1.000 -l 0 -D 167
+-n -f 391.995 -l 146 -D 21
+-n -f 391.995 -l 146 -D 21
+-n -f 391.995 -l 146 -D 21
+-n -f 311.127 -l 583 -D 83
+-n -f 1.000 -l 0 -D 56
+-n -f 1.000 -l 0 -D 167
+-n -f 349.228 -l 146 -D 21
+-n -f 349.228 -l 146 -D 21
+-n -f 349.228 -l 146 -D 21
+-n -f 293.665 -l 583 -D 83
+-n -f 1.000 -l 0 -D 0
+$ 
+
+	Consider, e. g.:
+
+$ beep -l 1 -f 1 \
+      $(mmlitest 'T180 O2 P2 P8 L8 GGG L2 E- P24 P8 L8 FFF L2 D') 
+
+
+    Bugs
+
+	The ML, MN, and MS (legato, normal, staccato) modes are
+	implemented, but mmli_next () (or, rather, interp_ctl ()) fails
+	to handle them properly for me.
+
+	The "octave tracking" mode is on by default, which is how the
+	FreeBSD driver behaves, but (apparently) contrary to how both
+	the historic BASIC's and QB64 behave.  One may have to prepend
+	the BASIC MML strings with an explicit ON to disable this mode.
+	(Use OL to turn it on again.)
+
+	None of MF, MB, or Vn (QB64) are implemented.
+
+	Several rests (P or ~) in a row should be conflated into a
+	single return from mmli_next ().
+
+	The parsing of the note commands' (Nn, A, ..., G) suffixes
+	couldn't easily be extended without altering the library code
+	itself, or messing with mmli_set ().
+
+	This interpreter should be added to beep(1), and maybe even
+	sox(1).
+
+	Mostly undocumented.  Read the (example's) source for the
+	details.
+
+	Command line interface is non-existent.
+
+README.mmli ends here
