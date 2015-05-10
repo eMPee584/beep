@@ -20,14 +20,14 @@ struct mmli_context {
 void  mmli_init  (struct mmli_context *c);
 
 int   mmli_ctl   (struct mmli_context *c, const char *s,
-                  const char **tailp);
+                  const char **tailp, int *channel);
 void  mmli_set   (struct mmli_context *c, const char *s);
 
 const char *mmli_tail  (const struct mmli_context *c);
 
 float mmli_fill     (const struct mmli_context *c);
 int   mmli_next     (struct mmli_context *c,
-                     float *freqp, float *durationp, float *restp);
+                     float *freqp, float *durationp, float *restp, int *channel);
 void  mmli_octave   (const struct mmli_context *c, int *octavep,
                      int *track_pp, int *over_pp);
 void  mmli_whole    (const struct mmli_context *c, float *wholep);

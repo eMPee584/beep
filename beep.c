@@ -294,6 +294,7 @@ play_beep_1 (beep_parms_t *parms)
   if (parms->mml != 0) {
     /* play an MML string instead */
     int done_p;
+    int channel;
     struct mmli_context x;
 
     mmli_init (&x);
@@ -301,7 +302,7 @@ play_beep_1 (beep_parms_t *parms)
     for (done_p = 0; ! done_p; ) {
       float freq, dur, rest;
       int r
-        = mmli_next (&x, &freq, &dur, &rest);
+        = mmli_next (&x, &freq, &dur, &rest, &channel);
 
       //printf("r = %d\n", r);
       assert (r >= 0);

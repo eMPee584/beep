@@ -94,7 +94,7 @@ static const int octave_max
 static int
 interp_note (struct mmli_context *x,
              float *freqp, float *durationp, float *restp,
-             const char *s, const char **tailp)
+             const char *s, const char **tailp, int *channel)
 {
   const char *p;
 
@@ -261,7 +261,7 @@ interp_note (struct mmli_context *x,
 
 static int
 interp_ctl (struct mmli_context *x,
-            const char *s, const char **tailp)
+            const char *s, const char **tailp, int *channel)
 {
   const char *p;
 
@@ -333,8 +333,8 @@ interp_ctl (struct mmli_context *x,
       case 's': x->fill = 6. / 8;   shift = 2; break;
       case 'n': x->fill = 7. / 8;   shift = 2; break;
       case 'l': x->fill = 1;        shift = 2; break;
-      case 'f': break;
-      case 'b': break;
+      case 'f': *channel = 0; shift = 2; break;
+      case 'b': *channel = 1; shift = 2; break;
       default:
         inval_p = 1;
         break;
@@ -344,8 +344,6 @@ interp_ctl (struct mmli_context *x,
       inval_p = 1;
       break;
     }
-
-    msnl_done:
 
     //printf("%d", inval_p);
 
@@ -397,11 +395,11 @@ mmli_init  (struct mmli_context *c)
 
 int
 mmli_ctl   (struct mmli_context *c, const char *s,
-            const char **tailp)
+            const char **tailp, int *channel)
 {
   /* . */
   return
-    interp_ctl (c, s, tailp);
+    interp_ctl (c, s, tailp, &channel);
 }
 
 void
@@ -427,13 +425,13 @@ mmli_fill (const struct mmli_context *c)
 
 int
 mmli_next     (struct mmli_context *c,
-               float *freqp, float *durationp, float *restp)
+               float *freqp, float *durationp, float *restp, int *channel)
 {
   const char *t;
 
   /* interpret all the controls first */
   int rc
-    = interp_ctl (c, c->tail, &t);
+    = interp_ctl (c, c->tail, &t, &channel);
 
 #if 0
   /* NB: will be done by interp_note () later, anyway */
@@ -457,7 +455,7 @@ mmli_next     (struct mmli_context *c,
   /* try to interpret the notes, if any */
   int rn
     = interp_note (c, freqp, durationp, restp,
-                   c->tail = t, &t);
+                   c->tail = t, &t, &channel);
 
   if (rn < 0) {
     /* NB: assuming t == c->tail; *freqp, etc. untouched */
