@@ -1,14 +1,13 @@
 CC=gcc
-# FLAGS=-w
-FLAGS = -w -DUSE_MMLI -Immli -g
+FLAGS=-Wall -O2 -DUSE_MMLI -Immli
 EXEC_NAME=beep
 INSTALL_DIR=/usr/bin
 MAN_FILE=beep.1.gz
-MAN_DIR=/usr/man/man1
+MAN_DIR=/usr/share/man/man1
 
 default : beep
 
-clean : 
+clean :
 	rm ${EXEC_NAME}
 
 # beep : beep.c
@@ -19,7 +18,7 @@ beep : beep.c mmli/mmli.c
 play : play.c mmli/mmli.c
 	${CC} ${FLAGS} -o play $^
 
-install : 
+install :
 	cp ${EXEC_NAME} ${INSTALL_DIR}
 	# rm -f /usr/man/man1/beep.1.bz2
 	cp ${MAN_FILE} ${MAN_DIR}
